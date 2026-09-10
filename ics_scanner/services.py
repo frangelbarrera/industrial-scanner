@@ -16,9 +16,9 @@ from typing import Any
 
 from ics_scanner.mitre_attack import enrich_report_with_attack
 from ics_scanner.security import (
-    TargetPolicyError,
+    ScanPolicy,
     configure_logging,
-    filter_targets,
+    validate_targets,
 )
 
 LOG = configure_logging("ics_scanner.services")
@@ -56,15 +56,16 @@ def scan_modbus_service(
     )
 
     raw_targets = expand_targets(targets_arg)
-    safe_targets = filter_targets(raw_targets, allow_public=allow_public)
-    if not safe_targets:
-        raise TargetPolicyError(
-            "No safe targets after policy filtering. Pass allow_public=True "
-            "only after written authorization from the asset owner."
-        )
+    safe_targets = validate_targets(raw_targets, ScanPolicy(allow_public=allow_public))
     LOG.info("Service: scanning %d target(s): %s", len(safe_targets), safe_targets)
 
-    data = scan_targets(targets=safe_targets, port=port, unit_id=unit_id, timeout=timeout)
+    data = scan_targets(
+        targets=safe_targets,
+        port=port,
+        unit_id=unit_id,
+        timeout=timeout,
+        allow_public=allow_public,
+    )
 
     if enrich_attack:
         # Modbus results are not per-packet, so we enrich the summary only.
