@@ -28,6 +28,9 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends libpcap0.8 \
     && rm -rf /var/lib/apt/lists/*
 
+# The analyzer must not run as root when processing untrusted PCAPs.
+RUN useradd --create-home --uid 10001 --shell /usr/sbin/nologin scanner
+
 # Copy installed packages from builder
 COPY --from=builder /usr/local/lib/python3.12/site-packages/ /usr/local/lib/python3.12/site-packages/
 COPY --from=builder /usr/local/bin/industrial-scanner /usr/local/bin/industrial-scanner
@@ -35,10 +38,13 @@ COPY --from=builder /usr/local/bin/industrial-scanner /usr/local/bin/industrial-
 # Copy HTML templates (not bundled in the wheel, needed at runtime for report rendering)
 COPY reports/templates/ /app/reports/templates/
 
-# Set working directory and PYTHONPATH so the templates and modules resolve correctly
-WORKDIR /work
+# Set working directory and ownership so the unprivileged process can write reports.
+RUN mkdir -p /work /app/reports \
+    && chown -R scanner:scanner /work /app
+WORKDIR /app
 ENV PYTHONPATH=/app
 VOLUME ["/work"]
+USER scanner
 
 # Default entry: show help
 ENTRYPOINT ["industrial-scanner"]
