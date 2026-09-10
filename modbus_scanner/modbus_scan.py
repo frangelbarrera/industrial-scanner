@@ -8,13 +8,15 @@ JSON/HTML reports.
 
 from __future__ import annotations
 
-import json
 import time
 from pathlib import Path
 from typing import Any
 
 from pymodbus.client import ModbusTcpClient
 from pymodbus.exceptions import ModbusIOException
+
+from ics_scanner.reporting import atomic_write_json, atomic_write_text, report_metadata
+from ics_scanner.security import ScanPolicy, validate_targets
 
 from .utils import (
     expand_targets,
@@ -133,14 +135,53 @@ def probe_host(ip: str, port: int, unit_id: int, timeout: float = 2.0) -> dict[s
     return result
 
 
-def scan_targets(targets: list[str], port: int, unit_id: int, timeout: float) -> dict[str, Any]:
+def scan_targets(
+    targets: list[str],
+    port: int,
+    unit_id: int,
+    timeout: float,
+    *,
+    allow_public: bool = False,
+    delay_between_targets: float = 0.0,
+) -> dict[str, Any]:
+    """Scan bounded targets sequentially after applying the safety policy."""
+    if not targets:
+        return {
+            "meta": {
+                **report_metadata(generated_at=utc_ts()),
+                "targets": [],
+                "port": port,
+                "unit_id": unit_id,
+                "timeout": timeout,
+            },
+            "results": [],
+            "summary": {"reachable": 0, "unauthenticated_read": 0, "broad_register_access": 0},
+        }
+    if not 1 <= port <= 65535:
+        raise ValueError("port must be between 1 and 65535")
+    if not 0 <= unit_id <= 255:
+        raise ValueError("unit_id must be between 0 and 255")
+    if not 0.2 <= timeout <= 10.0:
+        raise ValueError("timeout must be between 0.2 and 10 seconds")
+    policy = ScanPolicy(
+        allow_public=allow_public,
+        delay_between_targets=delay_between_targets,
+    )
+    validated = validate_targets(targets, policy)
     aggregate: dict[str, Any] = {
         "meta": {
-            "generated_at": utc_ts(),
-            "targets": targets,
+            **report_metadata(generated_at=utc_ts()),
+            "targets": validated,
             "port": port,
             "unit_id": unit_id,
             "timeout": timeout,
+            "policy": {
+                "allow_public": allow_public,
+                "max_targets": policy.max_targets,
+                "max_cidr_hosts": policy.max_cidr_hosts,
+                "delay_between_targets": delay_between_targets,
+                "writes_intentionally_issued": False,
+            },
         },
         "results": [],
         "summary": {
@@ -152,7 +193,7 @@ def scan_targets(targets: list[str], port: int, unit_id: int, timeout: float) ->
     results: list[dict[str, Any]] = aggregate["results"]
     summary: dict[str, int] = aggregate["summary"]
 
-    for ip in targets:
+    for index, ip in enumerate(validated):
         LOG.info("Probing %s:%d (unit %d)", ip, port, unit_id)
         res = probe_host(ip, port, unit_id, timeout)
         results.append(res)
@@ -163,29 +204,26 @@ def scan_targets(targets: list[str], port: int, unit_id: int, timeout: float) ->
             summary["unauthenticated_read"] += 1
         if res["exposure"]["broad_register_access"]:
             summary["broad_register_access"] += 1
+        if index + 1 < len(validated) and delay_between_targets:
+            time.sleep(delay_between_targets)
 
     return aggregate
 
 
 def write_json_report(data: dict[str, Any], out_path: Path) -> Path:
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    with out_path.open("w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
-    return out_path
+    return atomic_write_json(out_path, data)
 
 
 def write_html_report(
     data: dict[str, Any], out_path: Path, template_path: Path | None = None
 ) -> Path:
-    out_path.parent.mkdir(parents=True, exist_ok=True)
     # Render with autoescape=True to prevent XSS from untrusted PCAP bytes.
     from ics_scanner.security import safe_render
 
     template_dir = template_path.parent if template_path else Path("reports/templates")
     template_name = template_path.name if template_path else "modbus_report.html"
     html = safe_render(template_name, {"report": data}, template_dir=str(template_dir))
-    out_path.write_text(html, encoding="utf-8")
-    return out_path
+    return atomic_write_text(out_path, html)
 
 
 def main(
