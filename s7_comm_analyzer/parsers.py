@@ -265,7 +265,7 @@ def _guess_function(payload: bytes) -> str:
     return _classify_function(header, param)
 
 
-def parse_s7_packet(pkt) -> "dict | None":
+def parse_s7_packet(pkt: Any) -> "dict[str, Any] | None":
     """Extract useful metadata from an S7Comm packet.
 
     Returns a dict with src, dst, function_code, length, hints, rosctr,

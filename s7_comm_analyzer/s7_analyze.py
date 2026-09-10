@@ -7,13 +7,13 @@ sensitive function codes, and generates JSON/HTML reports in reports/s7_batch/.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
 
-from scapy.all import TCP, rdpcap
+from scapy.all import TCP, PcapReader
 
 from ics_scanner.mitre_attack import enrich_report_with_attack
+from ics_scanner.reporting import atomic_write_json, atomic_write_text, report_metadata
 from modbus_scanner.utils import setup_logger, utc_ts
 
 from .parsers import SUSPECT_FUNCS, parse_s7_packet
@@ -24,9 +24,15 @@ PCAP_DIR = Path("pcaps/s7")
 OUT_DIR = Path("reports/s7_batch")
 
 
-def analyze_pcap(pcap_path: str) -> dict[str, Any]:
-    """Analyze a PCAP file for S7Comm traffic."""
-    packets = rdpcap(str(pcap_path))
+def analyze_pcap(
+    pcap_path: str,
+    *,
+    max_packets: int = 100_000,
+    max_results: int = 10_000,
+) -> dict[str, Any]:
+    """Analyze a PCAP incrementally with explicit resource limits."""
+    if max_packets < 1 or max_results < 1:
+        raise ValueError("PCAP limits must be positive")
     results: list[dict[str, Any]] = []
     summary = {
         "total_packets": 0,
@@ -35,22 +41,32 @@ def analyze_pcap(pcap_path: str) -> dict[str, Any]:
         "unique_hosts": set(),
     }
 
-    for pkt in packets:
-        summary["total_packets"] += 1
-        if TCP in pkt and (pkt[TCP].dport == 102 or pkt[TCP].sport == 102):
-            parsed = parse_s7_packet(pkt)
-            if parsed:
-                results.append(parsed)
-                summary["s7_packets"] += 1
-                summary["unique_hosts"].add(parsed["src"])
-                summary["unique_hosts"].add(parsed["dst"])
-                if parsed["function_code"] in SUSPECT_FUNCS:
-                    summary["suspect_functions"] += 1
+    truncated = False
+    with PcapReader(str(pcap_path)) as packets:
+        for pkt in packets:
+            summary["total_packets"] += 1
+            if summary["total_packets"] > max_packets:
+                truncated = True
+                break
+            if TCP in pkt and (pkt[TCP].dport == 102 or pkt[TCP].sport == 102):
+                parsed = parse_s7_packet(pkt)
+                if parsed:
+                    if len(results) >= max_results:
+                        truncated = True
+                        break
+                    results.append(parsed)
+                    summary["s7_packets"] += 1
+                    summary["unique_hosts"].add(parsed["src"])
+                    summary["unique_hosts"].add(parsed["dst"])
+                    if parsed["function_code"] in SUSPECT_FUNCS:
+                        summary["suspect_functions"] += 1
 
     return {
         "meta": {
-            "generated_at": utc_ts(),
+            **report_metadata(generated_at=utc_ts()),
             "pcap_file": str(pcap_path),
+            "limits": {"max_packets": max_packets, "max_results": max_results},
+            "truncated": truncated,
         },
         "results": results,
         "summary": {
@@ -63,24 +79,19 @@ def analyze_pcap(pcap_path: str) -> dict[str, Any]:
 
 
 def write_json_report(data: dict[str, Any], out_path: Path) -> Path:
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    with out_path.open("w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
-    return out_path
+    return atomic_write_json(out_path, data)
 
 
 def write_html_report(
     data: dict[str, Any], out_path: Path, template_path: Path | None = None
 ) -> Path:
-    out_path.parent.mkdir(parents=True, exist_ok=True)
     # Render with autoescape=True to prevent XSS from untrusted PCAP bytes.
     from ics_scanner.security import safe_render
 
     template_dir = template_path.parent if template_path else Path("reports/templates")
     template_name = template_path.name if template_path else "s7_report.html"
     html = safe_render(template_name, {"report": data}, template_dir=str(template_dir))
-    out_path.write_text(html, encoding="utf-8")
-    return out_path
+    return atomic_write_text(out_path, html)
 
 
 def main() -> None:
