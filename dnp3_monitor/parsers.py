@@ -10,6 +10,8 @@ Reference: IEEE 1815-2012, Wireshark packet-dnp.c.
 
 from __future__ import annotations
 
+from typing import Any
+
 from scapy.all import Raw
 
 # ---------------------------------------------------------------------------
@@ -145,7 +147,7 @@ def _find_dnp3_payload(payload: bytes) -> bytes | None:
     """
     if len(payload) < 10:
         return None
-    for i in range(min(len(payload) - 10, 64)):
+    for i in range(min(len(payload) - 10, 64) + 1):
         if payload[i] == DNP3_SYNC_0 and payload[i + 1] in (DNP3_SYNC_1, DNP3_SYNC_1_RTU):
             return payload[i:]
     return None
@@ -219,6 +221,11 @@ def _classify_app_function(payload: bytes) -> str:
     link = _parse_link_layer(frame)
     if link is None:
         return "NonDNP3"
+    # The length field counts bytes after the length octet. Reject truncated
+    # frames before interpreting application bytes; extra TCP payload is
+    # tolerated because captures may contain padding or concatenated data.
+    if len(frame) < 3 + link["length"]:
+        return "UnknownDNP3"
     if link["link_func"] != LINK_FUNC_USER_DATA:
         return LINK_FUNC_NAMES.get(link["link_func"], "UnknownDNP3")
     app = _parse_app_layer(frame, link)
@@ -227,7 +234,7 @@ def _classify_app_function(payload: bytes) -> str:
     return APP_FUNC_NAMES.get(app["app_func"], "UnknownDNP3")
 
 
-def parse_dnp3_packet(pkt) -> dict | None:
+def parse_dnp3_packet(pkt: Any) -> dict[str, Any] | None:
     """Extract useful metadata from a DNP3 packet."""
     if Raw not in pkt:
         return None
