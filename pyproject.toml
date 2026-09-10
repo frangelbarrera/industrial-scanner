@@ -122,9 +122,11 @@ python_version = "3.11"
 strict = false
 warn_return_any = false
 warn_unused_configs = true
-disallow_untyped_defs = false
+disallow_untyped_defs = true
+check_untyped_defs = true
+warn_unused_ignores = true
 ignore_missing_imports = true
-no_implicit_optional = false
+no_implicit_optional = true
 disable_error_code = ["attr-defined", "call-arg", "no-untyped-call", "arg-type", "assignment", "operator", "index", "return-value", "call-overload"]
 files = ["modbus_scanner", "s7_comm_analyzer", "dnp3_monitor", "ics_scanner"]
 
@@ -161,3 +163,7 @@ skips = ["B101"]   # assert usage in tests
 [tool.coverage.run]
 source = ["modbus_scanner", "s7_comm_analyzer", "dnp3_monitor"]
 omit = ["*/tests/*", "*/__pycache__/*"]
+
+[tool.coverage.report]
+fail_under = 80
+skip_empty = true
