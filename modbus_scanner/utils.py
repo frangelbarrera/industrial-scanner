@@ -7,6 +7,8 @@ import logging
 from datetime import UTC, datetime
 from pathlib import Path
 
+from ics_scanner.security import TargetPolicyError, parse_network
+
 __all__ = ["expand_targets", "html_template_path", "safe_str", "setup_logger", "utc_ts"]
 
 
@@ -35,12 +37,14 @@ def safe_str(e: Exception) -> str:
         return e.__class__.__name__
 
 
-def expand_targets(arg: str) -> list[str]:
+def expand_targets(arg: str, *, max_hosts: int = 256) -> list[str]:
     """Expand targets from multiple input formats:
     - "192.168.0.10,192.168.0.11"
     - "192.168.0.0/24" (CIDR)
     - "@targets.txt" (file with one IP per line)
     """
+    if max_hosts < 1:
+        raise ValueError("max_hosts must be positive")
     arg = arg.strip()
     out: list[str] = []
 
@@ -49,8 +53,10 @@ def expand_targets(arg: str) -> list[str]:
         path = Path(arg[1:])
         for line in path.read_text(encoding="utf-8").splitlines():
             line = line.strip()
-            if line:
+            if line and not line.startswith("#"):
                 out.append(line)
+                if len(out) > max_hosts:
+                    raise TargetPolicyError(f"target file exceeds maximum of {max_hosts} entries")
         return out
 
     if "," in arg:
@@ -59,15 +65,25 @@ def expand_targets(arg: str) -> list[str]:
             token = token.strip()
             if token:
                 out.append(token)
+                if len(out) > max_hosts:
+                    raise TargetPolicyError(f"target list exceeds maximum of {max_hosts} entries")
         return out
 
     # CIDR or single IP
     try:
-        net = ipaddress.ip_network(arg, strict=False)
-        return [str(ip) for ip in net.hosts()]
-    except ValueError:
-        # Single IP fallback
-        return [arg]
+        net = parse_network(arg, max_hosts=max_hosts)
+        hosts = list(net.hosts())
+        return [str(ip) for ip in hosts] or [str(net.network_address)]
+    except TargetPolicyError:
+        # Preserve hostname compatibility; the central policy rejects it
+        # before any network operation.
+        if "/" in arg:
+            raise
+        try:
+            ipaddress.ip_address(arg)
+        except ValueError:
+            return [arg]
+        raise
 
 
 def html_template_path(name: str) -> Path:
