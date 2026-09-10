@@ -11,13 +11,14 @@ import html as html_lib
 import json
 import os
 from datetime import UTC, datetime
+from typing import Any
 
 REPORT_DIR = os.path.join("reports", "modbus_batch")
 OUTPUT_FILE = os.path.join("reports", "modbus_index.html")
 
 
-def load_reports():
-    reports = []
+def load_reports() -> list[dict[str, Any]]:
+    reports: list[dict[str, Any]] = []
     if not os.path.exists(REPORT_DIR):
         return reports
     for fname in os.listdir(REPORT_DIR):
@@ -41,7 +42,7 @@ def load_reports():
     return reports
 
 
-def build_index(reports, now_override=None):
+def build_index(reports: list[dict[str, Any]], now_override: str | None = None) -> str:
     now = now_override or datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%SZ")
 
     labels = []
@@ -60,7 +61,7 @@ def build_index(reports, now_override=None):
     parts.append("<!doctype html><html lang='en'><head>")
     parts.append("<meta charset='utf-8'>")
     parts.append("<title>IndustrialScanner | Modbus Global Report Index</title>")
-    parts.append("<script src='https://cdn.jsdelivr.net/npm/chart.js'></script>")
+    parts.append("<script src='assets/chart.umd.min.js'></script>")
     parts.append("<style>")
     parts.append("body { font-family: Arial, sans-serif; margin: 24px; color: #222; }")
     parts.append("h1 { margin-bottom: 4px; }")

@@ -21,7 +21,7 @@ REPORTS = {
 OUTPUT_FILE = os.path.join("reports", "index.html")
 
 
-def collect_summary(folder):
+def collect_summary(folder: str) -> tuple[int, int, int]:
     total_pcaps = 0
     total_packets = 0
     suspect = 0
@@ -45,7 +45,7 @@ def collect_summary(folder):
     return (total_pcaps, total_packets, suspect)
 
 
-def build_index(results, now_override=None):
+def build_index(results: dict[str, tuple[int, int, int]], now_override: str | None = None) -> str:
     now = now_override or datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%SZ")
     parts = []
     parts.append("<!doctype html><html lang='en'><head><meta charset='utf-8'>")
