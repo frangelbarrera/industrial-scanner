@@ -16,8 +16,10 @@ The Modbus scanner issues **only read function codes**:
 | 0x03 | Read Holding Registers | Read 16-bit registers |
 | 0x04 | Read Input Registers | Read 16-bit input registers (read-only) |
 
-No write or control operations are issued. This makes the scanner safe to
-run against production PLCs (subject to the target safety policy).
+No write or control operations are intentionally issued. Read-only does not
+guarantee zero operational impact: validate the scanner in a representative
+lab, obtain asset-owner authorization, and use a maintenance window before
+active scanning of production PLCs.
 
 ## Usage
 
@@ -54,6 +56,8 @@ The scanner reports two exposure signals per host:
 - Modbus/TCP has **no authentication, no encryption, no integrity** by design
 - Anyone with network access to TCP/502 can read AND write to the PLC
 - The scanner is read-only, but a malicious actor on the same network is not
+- Active reads can still consume device or network resources; execution is
+  single-flight by default and supports a delay between targets
 - For production deployments, consider **Modbus/TCP Security (RFC 9441)**
   which adds TLS + X.509 + per-function-code access control
 
