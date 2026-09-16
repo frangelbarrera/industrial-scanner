@@ -85,9 +85,19 @@ across all three protocols.
 > **Note**: a `dashboard` subcommand is planned for a future release to
 > unify these scripts under the CLI. For now, use the build scripts directly.
 
+## Operational capture aids
+
+The `tools/` directory is reserved for reviewed Wireshark profiles and capture
+utilities. No such artifacts are published yet. Until they are added and
+validated, use a separately approved profile and follow your organization's
+passive, receive-only collection procedure. See
+[`tools/README.md`](../tools/README.md) for the publication criteria.
+
 ## Next steps
 
 - [Protocol guides](protocols/modbus.md) for deep dives into each protocol
 - [MITRE ATT&CK mapping](mitre-attack.md) to understand the threat intelligence
 - [Architecture](architecture.md) for the design philosophy
+- [IEC 62443 zones and conduits](62443-zones-conduits.md) for a corporate
+  assessment and evidence workflow
 - [Contributing](contributing.md) if you want to add a new protocol parser

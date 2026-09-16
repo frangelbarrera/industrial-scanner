@@ -12,7 +12,7 @@ evaluating the tool knows exactly what it does and does not provide.
 |---|---|---|
 | **MITRE ATT&CK for ICS** | Direct mapping | Suspect protocol functions are enriched with ATT&CK for ICS techniques. The catalog is validated against the official STIX bundle in CI (`tests/test_mitre_attack_ground_truth.py`). |
 | **NIST SP 800-82 Rev. 3** | Partial support (detection aid) | Passive PCAP analysis of Modbus/TCP, S7Comm and DNP3 can feed the network-monitoring evidence expected for OT security programs. It is a point tool, not a monitoring platform. |
-| **IEC 62443** | Reference only | Read-only design and a target safety policy are aligned with the defensive spirit of the standard (system security requirements for IACS), but the tool implements no 62443 requirements and performs no certification testing. |
+| **IEC 62443** | Assessment aid only | The [zones/conduits guide](62443-zones-conduits.md) provides a practical register and evidence workflow informed by 62443-3-2 and 2-1. The tool implements no 62443 requirements and performs no certification testing. |
 | **NERC CIP** | Reference only | Report outputs (JSON/HTML, per-PCAP evidence) can contribute to an audit evidence portfolio (e.g. CIP-010 configuration monitoring), but the tool itself satisfies no CIP requirement. |
 | **ISO/IEC 27019** | Reference only | Same as above: outputs may inform energy-utility security reviews; the tool makes no certification claim. |
 

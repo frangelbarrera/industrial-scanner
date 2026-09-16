@@ -82,6 +82,10 @@ python build_global_index.py    # Global executive dashboard
 
 Outputs land in `reports/` as HTML dashboards with Chart.js visualizations.
 
+> **Operational tools:** the `tools/` directory is reserved for reviewed
+> Wireshark profiles and capture aids. No profiles are published yet; see
+> [`tools/README.md`](tools/README.md) instead of assuming they are available.
+
 ---
 
 ## Repository layout
@@ -110,6 +114,7 @@ IndustrialScanner/
 │  ├─ dnp3_index.html
 │  └─ index.html
 ├─ tests/                  # pytest + property-based tests (NEW)
+├─ tools/                  # Reviewed operator aids (currently reserved)
 ├─ .github/workflows/      # CI, release, dependency scan (NEW)
 ├─ pcaps/                  # Sample PCAPs
 ├─ docs/images/            # Screenshots
@@ -280,6 +285,8 @@ IndustrialScanner is positioned against the following standards (see [`docs/comp
 - **ISO/IEC 27019** (Energy utility industry security)
 
 The tool is **not** compliance-certified and does not replace a formal audit, but its outputs can feed an audit evidence portfolio.
+
+For a practical workflow covering zones, conduits, target security levels, and asset-owner evidence, see the [IEC 62443 zones and conduits guide](docs/62443-zones-conduits.md).
 
 ---
 

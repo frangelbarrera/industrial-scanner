@@ -25,6 +25,7 @@ files without sending any traffic.
 - **HTML/JSON reports** with XSS-safe autoescaping
 - **Executive dashboards** with Chart.js visualizations
 - **Target safety policy** — public IPs refused without explicit opt-in
+- **62443 assessment aid** — zones/conduits register and evidence workflow, without making compliance claims
 
 ## Quickstart
 
@@ -48,5 +49,6 @@ See the [Quickstart guide](quickstart.md) for the full workflow.
 - [Protocol guides](protocols/modbus.md)
 - [MITRE ATT&CK mapping](mitre-attack.md)
 - [Architecture](architecture.md)
+- [IEC 62443 zones and conduits](62443-zones-conduits.md) for a corporate assessment and evidence workflow
 - [Security policy](security.md)
 - [Contributing](contributing.md)

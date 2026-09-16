@@ -46,6 +46,7 @@ nav:
       - Siemens S7Comm: protocols/s7comm.md
       - DNP3: protocols/dnp3.md
   - MITRE ATT&CK: mitre-attack.md
+  - IEC 62443: 62443-zones-conduits.md
   - Architecture: architecture.md
   - Security: security.md
   - Contributing: contributing.md
