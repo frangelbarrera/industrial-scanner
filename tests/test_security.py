@@ -62,6 +62,24 @@ class TestIsSafeTarget:
     def test_public_allowed_with_flag(self):
         assert is_safe_target("8.8.8.8", allow_public=True) is True
 
+    @pytest.mark.parametrize(
+        "target",
+        [
+            "::ffff:8.8.8.8",
+            "64:ff9b::808:808",
+            "2002:808:808::1",
+        ],
+    )
+    def test_public_ipv6_transition_targets_are_refused(self, target):
+        with pytest.raises(TargetPolicyError):
+            is_safe_target(target)
+
+    def test_private_ipv4_mapped_target_is_allowed(self):
+        assert is_safe_target("::ffff:192.168.1.1") is True
+
+    def test_transition_target_is_allowed_with_explicit_authorization(self):
+        assert is_safe_target("::ffff:8.8.8.8", allow_public=True) is True
+
     def test_cidr_size_limit(self):
         with pytest.raises(TargetPolicyError):
             is_safe_target("10.0.0.0/8")

@@ -93,9 +93,24 @@ def is_safe_target(
 ) -> bool:
     """Return whether a single IP or bounded CIDR is safe to actively probe."""
     network = parse_network(target, max_hosts=max_hosts)
-    if network.is_loopback or network.is_link_local or network.is_private or network.is_reserved:
-        return True
     if allow_public:
+        return True
+    address = network.network_address
+    if isinstance(address, ipaddress.IPv6Address):
+        mapped = address.ipv4_mapped
+        if mapped is not None and mapped.is_global:
+            raise TargetPolicyError(
+                f"Refusing to scan public address {target!r}; explicit authorization is required"
+            )
+        if address.sixtofour is not None and address.sixtofour.is_global:
+            raise TargetPolicyError(
+                f"Refusing to scan public address {target!r}; explicit authorization is required"
+            )
+        if address in ipaddress.IPv6Network("64:ff9b::/96"):
+            raise TargetPolicyError(
+                f"Refusing to scan public address {target!r}; explicit authorization is required"
+            )
+    if network.is_loopback or network.is_link_local or network.is_private or network.is_reserved:
         return True
     raise TargetPolicyError(
         f"Refusing to scan public address {target!r}; explicit authorization is required"
