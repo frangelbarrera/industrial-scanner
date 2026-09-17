@@ -171,7 +171,6 @@ IndustrialScanner implements the following security features:
 - **pip-audit** scans dependencies for known CVEs on every push and daily.
 - **Semgrep** runs OWASP Top 10 + Python rulesets.
 - **CodeQL** semantic analysis runs on every push.
-- **Dependabot** is enabled for dependency updates.
 
 ### No telemetry, no outbound calls
 

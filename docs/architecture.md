@@ -20,7 +20,7 @@ IndustrialScanner is organized as a layered application:
                     │
 ┌─────────────────────────────────────────────┐
 │  Shared primitives (ics_scanner/)             │
-│  security  mitre_attack  plugins  utils      │
+│  security  mitre_attack  plugins  reporting  │
 └─────────────────────────────────────────────┘
 ```
 
@@ -82,12 +82,12 @@ class ProtocolParser(Protocol):
 
 ## Testing strategy
 
-- **Unit tests** (pytest): 226 tests covering parsers, security primitives,
-  services, MITRE mapping
-- **Property-based tests** (Hypothesis): ~2900 generated test cases per run for
-  parser invariants (never crashes, deterministic, field preservation)
+- **Unit tests** (pytest): cover parsers, security primitives, services and
+  MITRE mapping
+- **Property-based tests** (Hypothesis): generated inputs check parser
+  invariants (never crashes, deterministic, field preservation)
 - **Snapshot tests**: 6 HTML baselines for the 4 dashboard builders
-- **Coverage**: 89% (target 80%+)
+- **Coverage**: 80% minimum enforced on every full run
 
 ## CI/CD pipeline
 
@@ -99,4 +99,5 @@ GitHub Actions workflows run on every push and PR:
 - `docs.yml` — deploys MkDocs site to GitHub Pages on docs/ changes
 - `docker.yml` — builds Docker image and pushes to GHCR
 
-Tags matching `v*` trigger PyPI publication (planned `release.yml` workflow).
+Tags matching `v*` trigger the `release.yml` workflow: PyPI publication and a
+GitHub Release with generated notes.
