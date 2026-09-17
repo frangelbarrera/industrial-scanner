@@ -66,8 +66,14 @@ Issues = "https://github.com/frangelbarrera/industrial-scanner/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["modbus_scanner*", "s7_comm_analyzer*", "dnp3_monitor*", "ics_scanner*"]
-exclude = ["tests*", "pcaps*", "reports*", "docs*"]
+include = ["modbus_scanner*", "s7_comm_analyzer*", "dnp3_monitor*", "ics_scanner*", "reports*"]
+exclude = ["tests*", "pcaps*", "docs*"]
+
+[tool.setuptools]
+py-modules = ["build_dnp3_index", "build_global_index", "build_modbus_index", "build_s7_index"]
+
+[tool.setuptools.package-data]
+reports = ["templates/*.html"]
 
 [tool.ruff]
 line-length = 100

@@ -14,7 +14,11 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install pip-audit
-      - run: pip-audit -r requirements.txt --strict
+      - name: Audit dependencies
+        shell: bash
+        run: |
+          set -o pipefail
+          pip-audit -r requirements.txt --strict 2>&1 | tee pip-audit-output.txt
       - name: Create issue on failure
         if: failure()
         uses: peter-evans/create-issue-from-file@v5

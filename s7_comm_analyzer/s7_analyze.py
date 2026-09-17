@@ -88,7 +88,12 @@ def write_html_report(
     # Render with autoescape=True to prevent XSS from untrusted PCAP bytes.
     from ics_scanner.security import safe_render
 
-    template_dir = template_path.parent if template_path else Path("reports/templates")
+    if template_path:
+        template_dir = template_path.parent
+    else:
+        from importlib.resources import files
+
+        template_dir = Path(str(files("reports") / "templates"))
     template_name = template_path.name if template_path else "s7_report.html"
     html = safe_render(template_name, {"report": data}, template_dir=str(template_dir))
     return atomic_write_text(out_path, html)
