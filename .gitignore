@@ -75,8 +75,8 @@ reports/*.html
 # Sample PCAPs (large fixtures shipped via GitHub Releases)
 pcaps/s7/*.pcapng
 
-# Third-party JARs (kept in repo for now, but flagged)
-# ModbusPal.jar
+# Third-party JARs (download on demand, see README)
+vendor/*.jar
 
 # Environment / secrets
 .env

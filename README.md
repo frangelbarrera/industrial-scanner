@@ -226,7 +226,7 @@ The repo bundles:
 
 - **Sample PCAPs** for S7Comm (`.pcapng`) and DNP3 (`.pcap`) under `pcaps/`.
 - Large PCAP fixtures are mirrored in the [fixture-pcap-2026-09](../../releases/tag/fixture-pcap-2026-09) release. The repo only tracks small example captures.
-- **ModbusPal.jar**, a third-party Modbus/TCP emulator, for spinning up a local test target. (External dependency; report issues to its upstream project.)
+ModbusPal.jar is required for Modbus/TCP protocol simulation in tests. Download from https://modbuspal.sourceforge.net/ and place under `vendor/ModbusPal.jar` before running the Modbus test suite.
 
 These let you validate the toolkit end-to-end without external infrastructure.
 
