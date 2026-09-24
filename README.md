@@ -225,6 +225,7 @@ Produces `reports/index.html` with totals and quick links per protocol.
 The repo bundles:
 
 - **Sample PCAPs** for S7Comm (`.pcapng`) and DNP3 (`.pcap`) under `pcaps/`.
+- Large PCAP fixtures are mirrored in the [fixture-pcap-2026-09](../../releases/tag/fixture-pcap-2026-09) release. The repo only tracks small example captures.
 - **ModbusPal.jar**, a third-party Modbus/TCP emulator, for spinning up a local test target. (External dependency; report issues to its upstream project.)
 
 These let you validate the toolkit end-to-end without external infrastructure.

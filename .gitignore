@@ -72,8 +72,8 @@ reports/dnp3_batch/*.json
 reports/dnp3_batch/*.html
 reports/*.html
 
-# Sample PCAPs (ship via git-lfs or external release instead)
-# pcaps/
+# Sample PCAPs (large fixtures shipped via GitHub Releases)
+pcaps/s7/*.pcapng
 
 # Third-party JARs (kept in repo for now, but flagged)
 # ModbusPal.jar
