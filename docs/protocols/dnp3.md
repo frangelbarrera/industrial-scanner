@@ -70,13 +70,18 @@ Each packet entry includes:
   block (only the function code is extracted). For full object-level
   analysis, use the `dnp3-python` library from Step Function I/O.
 - **DNP3 Secure Authentication v5 (SA v5)** is detected (function 0x1D)
-  but the SA v5 challenge-response is not validated. SA v5 is mandatory
-  for IEC 62443 SL 3+ compliance.
+  but the SA v5 challenge-response is not validated. Whether SA v5 or
+  another compensating control is required depends on the applicable
+  deployment profile, asset-owner requirements, risk assessment, and
+  target security level; IEC 62443 does not impose a universal
+  protocol-version mandate.
 
 ## Security considerations
 
 - DNP3 has **no authentication by default**. Anyone with network access
   to TCP/20000 can issue Operate, Write, ColdRestart.
-- For production, **enable DNP3 SA v5** (mandatory for SL 3+ per IEC 62443)
+- For production, use authenticated DNP3 where supported and evaluate
+  **DNP3 SA v5** against the applicable deployment profile, asset-owner
+  requirements, risk assessment, and target security level.
 - Restrict TCP/20000 access via firewall rules to known master/RTU pairs
 - Use TLS (DNP3 over TLS) for additional confidentiality

@@ -191,8 +191,11 @@ initiate via the Modbus scanner.
   framing and is **not** supported. The analyzer returns `NonS7Payload`
   for these frames.
 - **DNP3 Secure Authentication v5 (SA v5)** is detected (function `0x1D`)
-  but the challenge-response is not validated. SA v5 is mandatory for
-  IEC 62443 SL 3+ compliance. (Roadmap: Q2 2026.)
+  but the challenge-response is not validated. Whether SA v5 or another
+  compensating control is required depends on the applicable deployment
+  profile, asset-owner requirements, risk assessment, and target security
+  level; IEC 62443 does not impose a universal protocol-version mandate.
+  (Roadmap: Q2 2026.)
 - **Modbus/TCP TLS (RFC 9441)** is not yet implemented. Modbus traffic is
   sent in plaintext. (Roadmap: Q2 2026.)
 - **Sample PCAPs** in `pcaps/` have been anonymized (public IPs replaced
