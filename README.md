@@ -334,3 +334,7 @@ Built on the shoulders of giants:
 - The broader ICS-CERT, SANS ICS, and Dragos research communities
 
 Maintained by **Frangel Raúl Crespo Barrera** — [`frangelbarrera`](https://github.com/frangelbarrera).
+
+## Safe target policy
+
+See [docs/safe-target-policy.md](docs/safe-target-policy.md).
