@@ -133,7 +133,7 @@ class TestProbeHost:
         """When an exception bubbles up, it should be captured in errors."""
         mock_client_class.side_effect = OSError("network unreachable")
 
-        result = probe_host("invalid.example", 502, 1, timeout=0.5)
+        result = probe_host("127.0.0.1", 502, 1, timeout=0.5)
         assert result["reachable"] is False
         assert any("probe_error" in e for e in result["errors"])
 

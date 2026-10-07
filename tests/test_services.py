@@ -170,3 +170,52 @@ class TestBuildDashboardService:
     def test_unsupported_protocol(self):
         with pytest.raises(ValueError):
             build_dashboard_service("profinet")
+
+
+class TestPhaseOneContracts:
+    @patch("modbus_scanner.modbus_scan.ModbusTcpClient")
+    def test_service_applies_environment_allowlist(self, mock_client_class, monkeypatch):
+        from tests.test_modbus_scan import _make_mock_client
+
+        monkeypatch.setenv("INDUSTRIALSCANNER_ALLOWED_TARGETS", "127.0.0.0/8")
+        mock_client_class.return_value = _make_mock_client(reachable=True, with_data=False)
+        with pytest.raises(TargetPolicyError, match="outside the configured"):
+            scan_modbus_service(targets_arg="192.168.1.10", timeout=1.0)
+        mock_client_class.assert_not_called()
+
+    def test_global_dashboard_preserves_s7_directory_and_metrics(self, tmp_path):
+        reports = tmp_path / "reports"
+        report = reports / "s7_batch" / "sample.json"
+        report.parent.mkdir(parents=True)
+        report.write_text(
+            json.dumps(
+                {
+                    "meta": {"pcap_file": "sample.pcap"},
+                    "summary": {"total_packets": 7, "s7_packets": 5, "suspect_functions": 2},
+                }
+            )
+        )
+        out = build_dashboard_service("global", str(reports))
+        content = Path(out).read_text()
+        assert "s7_index.html" in content
+        assert "<td>7</td>" in content
+        assert ">2</span>" in content
+
+
+class TestPhaseOneDirectEntryPoints:
+    @patch("modbus_scanner.modbus_scan.ModbusTcpClient")
+    def test_probe_host_applies_environment_allowlist(self, mock_client_class, monkeypatch):
+        monkeypatch.setenv("INDUSTRIALSCANNER_ALLOWED_TARGETS", "127.0.0.0/8")
+        from modbus_scanner.modbus_scan import probe_host
+
+        with pytest.raises(TargetPolicyError, match="outside the configured"):
+            probe_host("192.168.1.10", 502, 1, 1.0)
+        mock_client_class.assert_not_called()
+
+    @patch("modbus_scanner.modbus_scan.ModbusTcpClient")
+    def test_probe_host_rejects_non_ip_target(self, mock_client_class):
+        from modbus_scanner.modbus_scan import probe_host
+
+        with pytest.raises(TargetPolicyError, match="Invalid IP/CIDR"):
+            probe_host("example.com", 502, 1, timeout=1.0)
+        mock_client_class.assert_not_called()

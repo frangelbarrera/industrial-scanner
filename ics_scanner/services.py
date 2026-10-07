@@ -14,7 +14,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from ics_scanner.config import load_config
 from ics_scanner.mitre_attack import enrich_report_with_attack
+from ics_scanner.reporting import atomic_write_text
 from ics_scanner.security import (
     ScanPolicy,
     configure_logging,
@@ -26,13 +28,13 @@ LOG = configure_logging("ics_scanner.services")
 
 def scan_modbus_service(
     targets_arg: str,
-    port: int = 502,
-    unit_id: int = 1,
-    timeout: float = 2.0,
+    port: int | None = None,
+    unit_id: int | None = None,
+    timeout: float | None = None,
     json_out: str | None = None,
     html_out: str | None = None,
     *,
-    allow_public: bool = False,
+    allow_public: bool | None = None,
     enrich_attack: bool = True,
 ) -> dict[str, Any]:
     """Orchestrate a Modbus/TCP read-only scan.
@@ -48,6 +50,11 @@ def scan_modbus_service(
     Returns the aggregated scan result dict (with MITRE enrichment if enabled).
     Raises TargetPolicyError if all targets are filtered out.
     """
+    config = load_config()
+    port = config.modbus_default_port if port is None else port
+    unit_id = config.modbus_default_unit if unit_id is None else unit_id
+    timeout = config.modbus_timeout if timeout is None else timeout
+    allow_public = False if allow_public is None else allow_public
     from modbus_scanner.modbus_scan import (
         expand_targets,
         scan_targets,
@@ -56,7 +63,15 @@ def scan_modbus_service(
     )
 
     raw_targets = expand_targets(targets_arg)
-    safe_targets = validate_targets(raw_targets, ScanPolicy(allow_public=allow_public))
+    safe_targets = validate_targets(
+        raw_targets,
+        ScanPolicy(
+            allow_public=allow_public,
+            allowed_targets=tuple(
+                value.strip() for value in config.allowed_targets.split(",") if value.strip()
+            ),
+        ),
+    )
     LOG.info("Service: scanning %d target(s): %s", len(safe_targets), safe_targets)
 
     data = scan_targets(
@@ -65,6 +80,9 @@ def scan_modbus_service(
         unit_id=unit_id,
         timeout=timeout,
         allow_public=allow_public,
+        allowed_targets=tuple(
+            value.strip() for value in config.allowed_targets.split(",") if value.strip()
+        ),
     )
 
     if enrich_attack:
@@ -159,7 +177,7 @@ def build_dashboard_service(
         html = mod.build_index(reports)
         out_path = output_file or str(Path(reports_dir) / "modbus_index.html")
         Path(out_path).parent.mkdir(parents=True, exist_ok=True)
-        Path(out_path).write_text(html, encoding="utf-8")
+        atomic_write_text(Path(out_path), html)
         return out_path
     elif protocol == "s7comm":
         import build_s7_index as s7
@@ -171,7 +189,7 @@ def build_dashboard_service(
         html = s7.build_index(reports)
         out_path = output_file or str(Path(reports_dir) / "s7_index.html")
         Path(out_path).parent.mkdir(parents=True, exist_ok=True)
-        Path(out_path).write_text(html, encoding="utf-8")
+        atomic_write_text(Path(out_path), html)
         return out_path
     elif protocol == "dnp3":
         import build_dnp3_index as dnp3
@@ -183,7 +201,7 @@ def build_dashboard_service(
         html = dnp3.build_index(reports)
         out_path = output_file or str(Path(reports_dir) / "dnp3_index.html")
         Path(out_path).parent.mkdir(parents=True, exist_ok=True)
-        Path(out_path).write_text(html, encoding="utf-8")
+        atomic_write_text(Path(out_path), html)
         return out_path
     elif protocol == "global":
         import build_global_index as g
@@ -191,11 +209,11 @@ def build_dashboard_service(
         out_path = output_file or str(Path(reports_dir) / "index.html")
         g.OUTPUT_FILE = out_path
         results = {}
-        for proto, _folder in g.REPORTS.items():
-            results[proto] = g.collect_summary(str(Path(reports_dir) / f"{proto.lower()}_batch"))
+        for proto, folder in g.REPORTS.items():
+            results[proto] = g.collect_summary(str(Path(reports_dir) / Path(folder).name))
         html = g.build_index(results)
         Path(out_path).parent.mkdir(parents=True, exist_ok=True)
-        Path(out_path).write_text(html, encoding="utf-8")
+        atomic_write_text(Path(out_path), html)
         return out_path
     else:
         raise ValueError(f"Unsupported protocol: {protocol}")

@@ -34,6 +34,7 @@ class ScanPolicy:
     min_timeout: float = 0.2
     max_timeout: float = 10.0
     delay_between_targets: float = 0.0
+    allowed_targets: tuple[str, ...] = ()
 
     def validate(self) -> None:
         if self.max_targets < 1 or self.max_cidr_hosts < 1:
@@ -44,6 +45,11 @@ class ScanPolicy:
             raise ValueError("min_timeout must not exceed max_timeout")
         if self.min_timeout <= 0 or self.delay_between_targets < 0:
             raise ValueError("timeouts and delays must be non-negative")
+        for target in self.allowed_targets:
+            try:
+                ipaddress.ip_network(target.strip(), strict=False)
+            except ValueError as exc:
+                raise TargetPolicyError(f"Invalid allowed IP/CIDR: {target!r}: {exc}") from exc
 
 
 def html_escape(value: Any) -> str:
@@ -121,6 +127,12 @@ def validate_targets(targets: Iterable[str], policy: ScanPolicy | None = None) -
     """Validate, normalize, deduplicate and bound targets before network access."""
     policy = policy or ScanPolicy()
     policy.validate()
+    allowed_networks = []
+    for value in policy.allowed_targets:
+        try:
+            allowed_networks.append(ipaddress.ip_network(value.strip(), strict=False))
+        except ValueError as exc:
+            raise TargetPolicyError(f"Invalid allowed IP/CIDR: {value!r}: {exc}") from exc
     validated: list[str] = []
     seen: set[str] = set()
     for raw in targets:
@@ -132,6 +144,10 @@ def validate_targets(targets: Iterable[str], policy: ScanPolicy | None = None) -
         hosts = network.hosts() if network.num_addresses > 1 else iter([network.network_address])
         for address in hosts:
             normalized = str(address)
+            if allowed_networks and not any(address in network for network in allowed_networks):
+                raise TargetPolicyError(
+                    f"Target {normalized!r} is outside the configured allowed target networks"
+                )
             if normalized not in seen:
                 seen.add(normalized)
                 validated.append(normalized)

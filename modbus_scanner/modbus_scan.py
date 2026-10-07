@@ -15,6 +15,7 @@ from typing import Any
 from pymodbus.client import ModbusTcpClient
 from pymodbus.exceptions import ModbusIOException
 
+from ics_scanner.config import load_config
 from ics_scanner.reporting import atomic_write_json, atomic_write_text, report_metadata
 from ics_scanner.security import ScanPolicy, validate_targets
 
@@ -28,13 +29,32 @@ from .utils import (
 LOG = setup_logger("modbus_scanner")
 
 
-def probe_host(ip: str, port: int, unit_id: int, timeout: float = 2.0) -> dict[str, Any]:
+def probe_host(
+    ip: str,
+    port: int,
+    unit_id: int,
+    timeout: float = 2.0,
+    *,
+    allow_public: bool = False,
+    allowed_targets: tuple[str, ...] | None = None,
+) -> dict[str, Any]:
     """
     Probe a single Modbus/TCP host safely (read-only).
 
     Issues short reads for coils, discrete inputs, holding and input registers,
     and collects basic latency and exposure signals.
     """
+    config = load_config()
+    configured_allowed = tuple(
+        value.strip() for value in config.allowed_targets.split(",") if value.strip()
+    )
+    validate_targets(
+        [ip],
+        ScanPolicy(
+            allow_public=allow_public,
+            allowed_targets=configured_allowed if allowed_targets is None else allowed_targets,
+        ),
+    )
     start = time.time()
     result: dict[str, Any] = {
         "ip": ip,
@@ -143,6 +163,7 @@ def scan_targets(
     *,
     allow_public: bool = False,
     delay_between_targets: float = 0.0,
+    allowed_targets: tuple[str, ...] = (),
 ) -> dict[str, Any]:
     """Scan bounded targets sequentially after applying the safety policy."""
     if not targets:
@@ -166,6 +187,7 @@ def scan_targets(
     policy = ScanPolicy(
         allow_public=allow_public,
         delay_between_targets=delay_between_targets,
+        allowed_targets=allowed_targets,
     )
     validated = validate_targets(targets, policy)
     aggregate: dict[str, Any] = {
@@ -195,7 +217,9 @@ def scan_targets(
 
     for index, ip in enumerate(validated):
         LOG.info("Probing %s:%d (unit %d)", ip, port, unit_id)
-        res = probe_host(ip, port, unit_id, timeout)
+        res = probe_host(
+            ip, port, unit_id, timeout, allow_public=allow_public, allowed_targets=allowed_targets
+        )
         results.append(res)
 
         if res["reachable"]:
@@ -233,16 +257,29 @@ def write_html_report(
 
 def main(
     targets_arg: str,
-    port: int = 502,
-    unit_id: int = 1,
-    timeout: float = 2.0,
+    port: int | None = None,
+    unit_id: int | None = None,
+    timeout: float | None = None,
     json_out: str | None = None,
     html_out: str | None = None,
 ) -> None:
+    config = load_config()
+    port = config.modbus_default_port if port is None else port
+    unit_id = config.modbus_default_unit if unit_id is None else unit_id
+    timeout = config.modbus_timeout if timeout is None else timeout
+    allowed_targets = tuple(
+        value.strip() for value in config.allowed_targets.split(",") if value.strip()
+    )
     targets = expand_targets(targets_arg)
     LOG.info("Expanded targets: %s", targets)
 
-    data = scan_targets(targets=targets, port=port, unit_id=unit_id, timeout=timeout)
+    data = scan_targets(
+        targets=targets,
+        port=port,
+        unit_id=unit_id,
+        timeout=timeout,
+        allowed_targets=allowed_targets,
+    )
 
     ts = utc_ts().replace(":", "-")
     json_path = Path(json_out or f"reports/modbus_batch/modbus_scan_{ts}.json")

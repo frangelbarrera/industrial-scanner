@@ -106,3 +106,22 @@ class TestSafeJoinPath:
     def test_allows_normal_join(self, tmp_path):
         p = safe_join_path(str(tmp_path), "reports", "out.json")
         assert str(p).endswith("reports/out.json")
+
+
+def test_validate_targets_enforces_configured_allowlist():
+    from ics_scanner.security import ScanPolicy, TargetPolicyError, validate_targets
+
+    assert validate_targets(["127.0.0.1"], ScanPolicy(allowed_targets=("127.0.0.0/8",))) == [
+        "127.0.0.1"
+    ]
+    with pytest.raises(TargetPolicyError, match="outside the configured"):
+        validate_targets(["192.168.1.10"], ScanPolicy(allowed_targets=("127.0.0.0/8",)))
+
+
+def test_malformed_index_report_is_rejected():
+    from ics_scanner.reporting import normalize_index_report
+
+    with pytest.raises(ValueError, match="meta and summary"):
+        normalize_index_report({})
+    with pytest.raises(ValueError, match="pcap_file"):
+        normalize_index_report({"meta": {"pcap_file": []}, "summary": {}})

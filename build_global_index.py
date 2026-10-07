@@ -11,6 +11,9 @@ import html as html_lib
 import json
 import os
 from datetime import UTC, datetime
+from pathlib import Path
+
+from ics_scanner.reporting import atomic_write_text, normalize_index_report
 
 REPORTS = {
     "Modbus": os.path.join("reports", "modbus_batch"),
@@ -30,11 +33,11 @@ def collect_summary(folder: str) -> tuple[int, int, int]:
     for fname in os.listdir(folder):
         if not fname.endswith(".json"):
             continue
-        total_pcaps += 1
         try:
             with open(os.path.join(folder, fname), encoding="utf-8") as f:
                 data = json.load(f)
-            summ = data.get("summary", {})
+            summ = normalize_index_report(data)["summary"]
+            total_pcaps += 1
             total_packets += summ.get("total_packets", 0)
             suspect += summ.get("suspect_functions", 0)
         except Exception as e:
@@ -69,7 +72,11 @@ def build_index(results: dict[str, tuple[int, int, int]], now_override: str | No
     )
     for proto, (pcaps, packets, suspects) in results.items():
         suspect_html = f"<span class='bad'>{suspects}</span>" if suspects > 0 else str(suspects)
-        link = f"{proto.lower()}_index.html"
+        link = {
+            "Modbus": "modbus_index.html",
+            "S7Comm": "s7_index.html",
+            "DNP3": "dnp3_index.html",
+        }[proto]
         parts.append(
             f"<tr><td>{html_lib.escape(proto)}</td><td>{pcaps}</td>"
             f"<td>{packets}</td><td>{suspect_html}</td>"
@@ -90,6 +97,5 @@ if __name__ == "__main__":
         results[proto] = collect_summary(folder)
     os.makedirs("reports", exist_ok=True)
     html = build_index(results)
-    with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
-        f.write(html)
+    atomic_write_text(Path(OUTPUT_FILE), html)
     print(f"[OK] Global meta-dashboard generated at {OUTPUT_FILE}")

@@ -9,6 +9,7 @@ import click
 from rich.console import Console
 from rich.table import Table
 
+from ics_scanner.config import load_config
 from ics_scanner.security import ScanPolicy, TargetPolicyError, configure_logging, validate_targets
 
 console = Console()
@@ -23,9 +24,9 @@ def cli() -> None:
 
 @cli.command("modbus", help="Active Modbus/TCP probe with no intentional writes.")
 @click.option("--targets", required=True, help="Comma-separated IPs, bounded CIDR, or @file")
-@click.option("--port", default=502, show_default=True, type=click.IntRange(1, 65535))
-@click.option("--unit", default=1, show_default=True, type=click.IntRange(0, 255))
-@click.option("--timeout", default=2.0, show_default=True, type=click.FloatRange(0.2, 10.0))
+@click.option("--port", default=None, type=click.IntRange(1, 65535))
+@click.option("--unit", default=None, type=click.IntRange(0, 255))
+@click.option("--timeout", default=None, type=click.FloatRange(0.2, 10.0))
 @click.option("--delay", default=0.0, show_default=True, type=click.FloatRange(0.0, 3600.0))
 @click.option("--max-targets", default=256, show_default=True, type=click.IntRange(1, 256))
 @click.option("--json-out", default=None, help="JSON report path")
@@ -47,6 +48,10 @@ def modbus_cmd(
     html_out: str | None,
     allow_public: bool,
 ) -> None:
+    config = load_config()
+    port = config.modbus_default_port if port is None else port
+    unit = config.modbus_default_unit if unit is None else unit
+    timeout = config.modbus_timeout if timeout is None else timeout
     from modbus_scanner.modbus_scan import (
         expand_targets,
         scan_targets,
@@ -63,6 +68,9 @@ def modbus_cmd(
                 allow_public=allow_public,
                 max_targets=max_targets,
                 delay_between_targets=delay,
+                allowed_targets=tuple(
+                    value.strip() for value in config.allowed_targets.split(",") if value.strip()
+                ),
             ),
         )
     except (TargetPolicyError, ValueError) as exc:
@@ -77,14 +85,28 @@ def modbus_cmd(
         timeout=timeout,
         allow_public=allow_public,
         delay_between_targets=delay,
+        allowed_targets=tuple(
+            value.strip() for value in config.allowed_targets.split(",") if value.strip()
+        ),
     )
     ts = utc_ts().replace(":", "-")
-    json_path = Path(json_out or f"reports/modbus_batch/modbus_scan_{ts}.json")
-    html_path = Path(html_out or f"reports/modbus_batch/modbus_scan_{ts}.html")
-    write_json_report(data, json_path)
-    write_html_report(data, html_path)
-    console.print(f"[green]OK[/green] JSON: {json_path}")
-    console.print(f"[green]OK[/green] HTML: {html_path}")
+    batch_dir = Path(config.reports_dir) / "modbus_batch"
+    json_path = (
+        Path(json_out)
+        if json_out
+        else (batch_dir / f"modbus_scan_{ts}.json" if config.report_json else None)
+    )
+    html_path = (
+        Path(html_out)
+        if html_out
+        else (batch_dir / f"modbus_scan_{ts}.html" if config.report_html else None)
+    )
+    if json_path:
+        write_json_report(data, json_path)
+        console.print(f"[green]OK[/green] JSON: {json_path}")
+    if html_path:
+        write_html_report(data, html_path)
+        console.print(f"[green]OK[/green] HTML: {html_path}")
 
     table = Table(title="Modbus Scan Summary")
     table.add_column("IP")
@@ -110,6 +132,7 @@ def modbus_cmd(
 def s7_cmd(
     pcap: str, max_packets: int, max_results: int, json_out: str | None, html_out: str | None
 ) -> None:
+    config = load_config()
     from ics_scanner.mitre_attack import enrich_report_with_attack
     from modbus_scanner.utils import utc_ts
     from s7_comm_analyzer.s7_analyze import analyze_pcap, write_html_report, write_json_report
@@ -120,12 +143,23 @@ def s7_cmd(
     data["meta"]["mitre_enriched"] = True
     base = Path(pcap).stem
     ts = utc_ts().replace(":", "-")
-    json_path = Path(json_out or f"reports/s7_batch/{base}_{ts}.json")
-    html_path = Path(html_out or f"reports/s7_batch/{base}_{ts}.html")
-    write_json_report(data, json_path)
-    write_html_report(data, html_path)
-    console.print(f"[green]OK[/green] JSON: {json_path}")
-    console.print(f"[green]OK[/green] HTML: {html_path}")
+    batch_dir = Path(config.reports_dir) / "s7_batch"
+    json_path = (
+        Path(json_out)
+        if json_out
+        else (batch_dir / f"{base}_{ts}.json" if config.report_json else None)
+    )
+    html_path = (
+        Path(html_out)
+        if html_out
+        else (batch_dir / f"{base}_{ts}.html" if config.report_html else None)
+    )
+    if json_path:
+        write_json_report(data, json_path)
+        console.print(f"[green]OK[/green] JSON: {json_path}")
+    if html_path:
+        write_html_report(data, html_path)
+        console.print(f"[green]OK[/green] HTML: {html_path}")
 
 
 @cli.command("dnp3", help="Passive DNP3 analyzer for one PCAP.")
@@ -137,6 +171,7 @@ def s7_cmd(
 def dnp3_cmd(
     pcap: str, max_packets: int, max_results: int, json_out: str | None, html_out: str | None
 ) -> None:
+    config = load_config()
     from dnp3_monitor.dnp3_analyze import analyze_pcap, save_html, save_json
     from ics_scanner.mitre_attack import enrich_report_with_attack
 
@@ -145,12 +180,19 @@ def dnp3_cmd(
     )
     data["meta"]["mitre_enriched"] = True
     base = Path(pcap).stem
-    json_path = json_out or f"reports/dnp3_batch/{base}.json"
-    html_path = html_out or f"reports/dnp3_batch/{base}.html"
-    save_json(data, json_path)
-    save_html(data, html_path)
-    console.print(f"[green]OK[/green] JSON: {json_path}")
-    console.print(f"[green]OK[/green] HTML: {html_path}")
+    batch_dir = Path(config.reports_dir) / "dnp3_batch"
+    json_path = (
+        Path(json_out) if json_out else (batch_dir / f"{base}.json" if config.report_json else None)
+    )
+    html_path = (
+        Path(html_out) if html_out else (batch_dir / f"{base}.html" if config.report_html else None)
+    )
+    if json_path:
+        save_json(data, str(json_path))
+        console.print(f"[green]OK[/green] JSON: {json_path}")
+    if html_path:
+        save_html(data, str(html_path))
+        console.print(f"[green]OK[/green] HTML: {html_path}")
 
 
 def main() -> None:

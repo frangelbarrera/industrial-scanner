@@ -11,7 +11,10 @@ import html as html_lib
 import json
 import os
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
+
+from ics_scanner.reporting import atomic_write_text, json_for_script, normalize_index_report
 
 REPORT_DIR = os.path.join("reports", "dnp3_batch")
 OUTPUT_FILE = os.path.join("reports", "dnp3_index.html")
@@ -29,12 +32,13 @@ def load_reports() -> list[dict[str, Any]]:
             with open(path, encoding="utf-8") as f:
                 data = json.load(f)
             html_name = fname.replace(".json", ".html")
+            normalized = normalize_index_report(data)
             reports.append(
                 {
                     "json": fname,
                     "html": html_name,
-                    "meta": data.get("meta", {}),
-                    "summary": data.get("summary", {}),
+                    "meta": normalized["meta"],
+                    "summary": normalized["summary"],
                 }
             )
         except Exception as e:
@@ -111,10 +115,10 @@ def build_index(reports: list[dict[str, Any]], now_override: str | None = None) 
     parts.append("</div>")
 
     parts.append("<script>")
-    parts.append(f"const labels = {labels};")
-    parts.append(f"const totalPackets = {total_packets};")
-    parts.append(f"const dnp3Packets = {dnp3_packets};")
-    parts.append(f"const suspects = {suspects};")
+    parts.append(f"const labels = {json_for_script(labels)};")
+    parts.append(f"const totalPackets = {json_for_script(total_packets)};")
+    parts.append(f"const dnp3Packets = {json_for_script(dnp3_packets)};")
+    parts.append(f"const suspects = {json_for_script(suspects)};")
     parts.append("""
     new Chart(document.getElementById('chartPackets'), {
         type: 'bar',
@@ -187,6 +191,5 @@ if __name__ == "__main__":
     else:
         os.makedirs("reports", exist_ok=True)
         html = build_index(reports)
-        with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
-            f.write(html)
+        atomic_write_text(Path(OUTPUT_FILE), html)
         print(f"[OK] Global DNP3 index generated at {OUTPUT_FILE}")

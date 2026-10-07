@@ -51,7 +51,7 @@ class ScannerConfig(BaseSettings):
     )
     allowed_targets: str = Field(
         default="",
-        description="CSV of allowed source IPs/CIDRs for active scans (empty = unrestricted within policy)",
+        description="CSV of allowed IPs/CIDRs for active scans (empty = unrestricted within policy)",
     )
 
     # SIEM forwarding (optional)
